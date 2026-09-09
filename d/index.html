@@ -3,18 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>diagnóstico</title>
+<title>diagnóstico v2</title>
 <style>
-html, body { margin: 0; }
-/* 2px de desbordamiento para que scrollTo tenga algo que mover (truco 1).
-   touch-action:none evita que el usuario haga scroll por su cuenta. */
-body { min-height: calc(100vh + 2px); touch-action: none; font-family: -apple-system, system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
-#fondo { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+html, body { margin: 0; overflow: hidden; }
+body { font-family: -apple-system, system-ui, sans-serif; -webkit-user-select: none; user-select: none; touch-action: none; }
+/* Como en la landing real: la capa de color va en el flujo, min-height 100dvh. */
+#fondo { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+/* Modo 150 %: la capa es mucho mayor que la pantalla y vemos un recorte. */
+body.m150 #fondo { position: fixed; top: -25vh; left: -25vw; width: 150vw; height: 150vh; min-height: 0; }
 #fondo b { font-size: 11vw; }
 #fondo small { font-size: 4.5vw; opacity: .85; margin-top: .6em; }
 #log { position: fixed; left: 8px; right: 8px; bottom: 150px; font-size: 12px; opacity: .75; text-align: center; word-break: break-all; }
 #barra { position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); background: rgba(0,0,0,.78); }
-#barra button { font: 600 14px/1.15 -apple-system, system-ui, sans-serif; padding: 13px 4px; border: 0; border-radius: 10px; background: #fff; color: #000; -webkit-tap-highlight-color: transparent; }
+#barra button { font: 600 13px/1.15 -apple-system, system-ui, sans-serif; padding: 12px 3px; border: 0; border-radius: 10px; background: #fff; color: #000; -webkit-tap-highlight-color: transparent; }
+#barra button.on { background: #ffd400; }
 </style>
 </head>
 <body>
@@ -22,23 +24,23 @@ body { min-height: calc(100vh + 2px); touch-action: none; font-family: -apple-sy
 <div id="log"></div>
 <div id="barra">
   <button data-t="0">0<br>nada</button>
-  <button data-t="1">1<br>scroll</button>
-  <button data-t="2">2<br>theme</button>
-  <button data-t="3">3<br>title</button>
-  <button data-t="4">4<br>replaceState</button>
-  <button data-t="5">5<br>reflow</button>
-  <button data-t="7">7<br>theme+scroll</button>
-  <button data-t="6">6<br>todo</button>
+  <button data-t="A">A<br>pad-bottom</button>
+  <button data-t="B">B<br>pad-top</button>
+  <button data-t="C">C<br>alto propio</button>
+  <button data-t="D">D<br>geom antes</button>
+  <button data-t="E">E<br>doble kick</button>
+  <button data-t="F">F<br>5 original</button>
+  <button data-t="150">150%<br>modo</button>
 </div>
 <script>
 (function () {
   var PAL = [['azul','#0017C3'],['rosa','#FFA3DC'],['lima','#BFED34'],['rojo','#FF3E3E'],['cian','#49FFED'],['magenta','#FF27EC'],['negro','#000000'],['blanco','#FFFFFF']];
-  var i = 0;
+  var i = 0, flip = false;
+  var body = document.body;
   var fondo = document.getElementById('fondo');
   var lc = document.getElementById('color');
   var lt = document.getElementById('truco');
   var log = document.getElementById('log');
-  var meta = null;
 
   function pinta(t) {
     var c = PAL[i];
@@ -47,37 +49,37 @@ body { min-height: calc(100vh + 2px); touch-action: none; font-family: -apple-sy
     fondo.style.color = claro ? '#fff' : '#000';
     log.style.color = fondo.style.color;
     lc.textContent = c[0];
-    lt.textContent = 'truco ' + t;
+    lt.textContent = 'truco ' + t + (body.classList.contains('m150') ? ' · 150%' : '');
     log.textContent = (log.textContent + ' · ' + t + ':' + c[0]).slice(-90);
   }
 
-  // Cada truco intenta provocar que el navegador vuelva a muestrear la barra.
+  // Cambio de geometría que persiste: alterna 0 y 1 px, sin revertir.
+  function kickBottom() { flip = !flip; body.style.paddingBottom = flip ? '1px' : '0'; void body.offsetHeight; }
+  function kickTop()    { flip = !flip; body.style.paddingTop    = flip ? '1px' : '0'; void body.offsetHeight; }
+
   var T = {
-    0: function () {},
-    1: function () { // scroll real de 2px y vuelta
-      window.scrollTo(0, 2);
-      requestAnimationFrame(function () { window.scrollTo(0, 0); });
-    },
-    2: function () { // theme-color (se crea la primera vez)
-      if (!meta) { meta = document.createElement('meta'); meta.name = 'theme-color'; document.head.appendChild(meta); }
-      meta.content = PAL[i][1];
-    },
-    3: function () { document.title = 'diagnóstico ' + PAL[i][0]; },
-    4: function () { history.replaceState(null, '', '#' + PAL[i][0]); },
-    5: function () { // fuerza layout en el borde superior
-      document.body.style.paddingTop = '1px';
-      void document.body.offsetHeight;
-      requestAnimationFrame(function () { document.body.style.paddingTop = '0'; });
-    },
-    7: function () { T[2](); T[1](); },
-    6: function () { T[2](); T[3](); T[4](); T[5](); T[1](); }
+    '0': function () {},
+    'A': function () { kickBottom(); },
+    'B': function () { kickTop(); },
+    // Cada color tiene su propia altura: el cambio de slide ya es cambio de geometría.
+    'C': function () { fondo.style.minHeight = 'calc(100dvh + ' + i + 'px)'; },
+    'E': function () { kickBottom(); setTimeout(kickBottom, 120); },
+    // El 5 de la v1, tal cual: 1px arriba y revertir al siguiente frame.
+    'F': function () { body.style.paddingTop = '1px'; void body.offsetHeight; requestAnimationFrame(function () { body.style.paddingTop = '0'; }); }
   };
 
   document.getElementById('barra').addEventListener('click', function (e) {
     var b = e.target.closest('button');
     if (!b) return;
     var t = b.getAttribute('data-t');
+    if (t === '150') {
+      body.classList.toggle('m150');
+      b.classList.toggle('on', body.classList.contains('m150'));
+      lt.textContent = body.classList.contains('m150') ? 'modo 150% ACTIVADO — ahora prueba 0' : 'modo 150% desactivado';
+      return;
+    }
     i = (i + 1) % PAL.length;
+    if (t === 'D') { kickBottom(); pinta(t); return; }   // geometría ANTES del color
     pinta(t);
     T[t]();
   });
