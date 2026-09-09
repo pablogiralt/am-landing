@@ -53,6 +53,26 @@ body {
 /* .slide es flex, así que el display:none del UA para [hidden] no basta. */
 [hidden] { display: none !important; }
 
+/* Solo en el navegador incrustado de Instagram (el JS marca <html> con «ig»
+   por User-Agent). Ese webview tiñe su cabecera muestreando los ~10-16 px
+   superiores de la página, y lo hace con 0,3-1,5 s de retraso que ninguna
+   técnica de página acorta: se probaron theme-color, cambios de geometría,
+   scroll programático y suave, y hasta el gesto real. Con una franja fija
+   del mismo color, la cabecera ya no tiene nada que seguir y nunca se
+   desfasa. 10 px bastan en un iPhone 14 Pro Max; 16 px es el margen. No
+   recoloca nada: es una capa por encima, y los toques la atraviesan. */
+html.ig::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 16px;
+  background: #000000;
+  z-index: 2;
+  pointer-events: none;
+}
+
 .slide {
   min-height: 100vh;
   min-height: 100dvh;
@@ -148,6 +168,9 @@ a {
 </main>
 <script>
 (function () {
+  // Navegador incrustado de Instagram: activa la franja superior (ver CSS).
+  if (/Instagram/i.test(navigator.userAgent)) document.documentElement.classList.add('ig');
+
   var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
   var actual = 0;
 
